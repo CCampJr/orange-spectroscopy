@@ -25,3 +25,4 @@ htmlcov/*
 
 # Unit test cache
 .pytest_cache/*
+orangecontrib/spectroscopy/make_colors_dset.py
