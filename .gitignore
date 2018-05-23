@@ -22,3 +22,6 @@ __pycache__
 
 # Coverage reports
 htmlcov/*
+
+# Unit test cache
+.pytest_cache/*
