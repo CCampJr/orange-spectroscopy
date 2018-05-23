@@ -254,10 +254,42 @@ class H5Reader(FileFormat, SpectralFileFormat):
             # * Temporary x, y, and energy vectors based on data-shape
             # TODO: Change to meta-data attribute controlled
             # ? Should we incorporate HDF5 "scales" for X,Y, and energy
-            x_locs = np.arange(dset.shape[0])
-            y_locs = np.arange(dset.shape[1])
+            x_locs = np.arange(dset.shape[1])
             energy = np.arange(dset.shape[2])
-            
+
+            # Try scales, then attributes, the just an int range
+            dset_y_dim = dset.dims[0].values()
+            if dset_y_dim:  # Has scales
+                y_locs = dset_y_dim[0].value
+                y_name = dset_y_dim[0].name.rsplit('/')[-1]
+            else:  # Try attributes
+                y_locs = dset.attrs.get('y')
+                if y_locs is None:  # Just make an int-vector
+                    y_locs = np.arange(dset.shape[0])
+
+            dset_x_dim = dset.dims[1].values()
+            if dset_x_dim:  # Has scales
+                x_locs = dset_x_dim[0].value
+                x_name = dset_x_dim[0].name.rsplit('/')[-1]
+            else:  # Try attributes
+                x_locs = dset.attrs.get('x')
+                if x_locs is None:  # Just make an int-vector
+                    x_locs = np.arange(dset.shape[1])
+
+            dset_energy_dim = dset.dims[2].values()
+            if dset_energy_dim:  # Has scales
+                energy = dset_energy_dim[0].value
+                energy_name = dset_energy_dim[0].name.rsplit('/')[-1]
+            else:  # Try attributes
+                # ! Absolutely terrible way of doing this. Just for demo
+                energy = dset.attrs.get('energy')
+                if energy is None:  # Just make an int-vector
+                    energy = dset.attrs.get('wavelength')
+                    if energy is None:  # Just make an int-vector
+                        energy = dset.attrs.get('wavenumber')
+                        if energy is None:  # Just make an int-vector
+                            energy = np.arange(dset.shape[1])
+
             # * Read direct typically uses less memory than .value, need to test
             intensities = np.zeros(dset.shape, dtype=dset_dtype)
             dset.read_direct(intensities)
