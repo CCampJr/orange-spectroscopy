@@ -230,26 +230,39 @@ class H5Reader(FileFormat, SpectralFileFormat):
     DESCRIPTION = 'HDF5'
 
     def read_spectra(self):
-        import lazy5
+        # TODO: Create orange-spectrosc-specific lazy5-like utilities
+        import h5py
         from lazy5.ui.QtHdfLoad import HdfLoad
+        from lazy5.inspect import get_attrs_dset
 
+        # ? Should the loader-UI be called from here? Or elsewhere?
+        # ! May want to pass a Qt5 parent to this widget to prevent any instabilities
         _, _, hdf_dataset_list = HdfLoad.getFileDataSets(pth=self.filename)
         if hdf_dataset_list:
-            if len(hdf_dataset_list) > 1:
+            if len(hdf_dataset_list) > 1:  # ? Want to be able to multi-load
                 raise ValueError('Multiple HDF5 datasets selected. Only 1 can be selected')
             hdf_dataset = hdf_dataset_list[0]
-            fof = lazy5.utils.FidOrFile(self.filename)
-            fid = fof.fid
+            
+            fid = h5py.File(self.filename, 'r')
             dset = fid[hdf_dataset]
+            dset_meta = get_attrs_dset(fid, hdf_dataset)
+
+            # Convert to computer-specific byte-orderings when coming in
+            # from H5 files. Ensures proper numpy-dtyping
+            dset_dtype = dset.dtype.newbyteorder('=')
+
+            # * Temporary x, y, and energy vectors based on data-shape
+            # TODO: Change to meta-data attribute controlled
+            # ? Should we incorporate HDF5 "scales" for X,Y, and energy
             x_locs = np.arange(dset.shape[0])
             y_locs = np.arange(dset.shape[1])
             energy = np.arange(dset.shape[2])
             
-            hdf_dtype = dset.dtype.newbyteorder('=')
-            hdf_dset_shp = dset.shape
-            intensities = np.zeros(hdf_dset_shp, dtype=hdf_dtype)
+            # * Read direct typically uses less memory than .value, need to test
+            intensities = np.zeros(dset.shape, dtype=dset_dtype)
             dset.read_direct(intensities)
-
+            fid.close()
+            
             return _spectra_from_image(intensities, energy, x_locs, y_locs)
     
 
