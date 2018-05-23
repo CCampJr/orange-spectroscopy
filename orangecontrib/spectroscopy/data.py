@@ -224,6 +224,34 @@ class EnviMapReader(FileFormat, SpectralFileFormat):
 
         return _spectra_from_image(X, features, x_locs, y_locs)
 
+class H5Reader(FileFormat, SpectralFileFormat):
+    """ General HDF5 File Format Reader """
+    EXTENSIONS = ('.h5', '.hdf5')
+    DESCRIPTION = 'HDF5'
+
+    def read_spectra(self):
+        import lazy5
+        from lazy5.ui.QtHdfLoad import HdfLoad
+
+        _, _, hdf_dataset_list = HdfLoad.getFileDataSets(pth=self.filename)
+        if hdf_dataset_list:
+            if len(hdf_dataset_list) > 1:
+                raise ValueError('Multiple HDF5 datasets selected. Only 1 can be selected')
+            hdf_dataset = hdf_dataset_list[0]
+            fof = lazy5.utils.FidOrFile(self.filename)
+            fid = fof.fid
+            dset = fid[hdf_dataset]
+            x_locs = np.arange(dset.shape[0])
+            y_locs = np.arange(dset.shape[1])
+            energy = np.arange(dset.shape[2])
+            
+            hdf_dtype = dset.dtype.newbyteorder('=')
+            hdf_dset_shp = dset.shape
+            intensities = np.zeros(hdf_dset_shp, dtype=hdf_dtype)
+            dset.read_direct(intensities)
+
+            return _spectra_from_image(intensities, energy, x_locs, y_locs)
+    
 
 class HDF5Reader_HERMES(FileFormat, SpectralFileFormat):
     """ A very case specific reader for HDF5 files from the HEREMES beamline in SOLEIL"""
